@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results - Brain Tumor Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .confidence-meter {
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .probability-bar {
+            transition: width 1s ease-in-out;
+        }
+        .result-image {
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        .result-image:hover {
+            transform: scale(1.02);
+        }
+        .segmentation-overlay {
+            position: relative;
+        }
+        .segmentation-overlay::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 0, 0, 0.3);
+            border-radius: 12px;
+            pointer-events: none;
+        }
+        .normal-result {
+            background-color: #f0fdf4;
+            border-left: 4px solid #22c55e;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-chart-bar text-blue-600 mr-2"></i> Analysis Results
+            </h1>
+            <a href="{{ url_for('index') }}" class="inline-flex items-center text-blue-600 hover:text-blue-800">
+                <i class="fas fa-arrow-left mr-1"></i> Back to upload
+            </a>
+        </header>
+
+        {% if is_normal %}
+            <!-- Special Normal Results Card -->
+            <div class="max-w-4xl mx-auto normal-result rounded-lg p-6 mb-8">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                        <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h2 class="text-xl font-semibold text-gray-800">No Tumor Detected</h2>
+                        <p class="text-gray-600 mt-1">The MRI scan appears normal with no signs of tumors.</p>
+                    </div>
+                </div>
+                
+                <div class="mt-6">
+                    <div class="flex justify-between items-center">
+                        <span class="font-medium">Confidence Level</span>
+                        <span class="font-semibold">{{ "%.1f"|format(prediction.confidence * 100) }}%</span>
+                    </div>
+                    <div class="mt-2 confidence-meter bg-gray-200">
+                        <div class="confidence-meter-fill h-full bg-green-500" 
+                             style="width: {{ prediction.confidence * 100 }}%">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <!-- Diagnosis Card for Abnormal Cases -->
+            {% if prediction %}
+            <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden mb-8">
+                <div class="p-6">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800 mb-1">Diagnosis Summary</h2>
+                            <p class="text-gray-600">AI analysis of your MRI scan</p>
+                        </div>
+                        <div class="mt-4 md:mt-0">
+                            <span class="px-4 py-2 rounded-full text-white font-semibold 
+                                {% if prediction.class_name == 'Glioma' %}bg-yellow-500
+                                {% elif prediction.class_name == 'Meningioma' %}bg-blue-500
+                                {% else %}bg-red-500{% endif %}">
+                                {{ prediction.class_name }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <div class="flex justify-between mb-1">
+                            <span class="font-medium">Confidence Level</span>
+                            <span class="font-semibold">{{ "%.1f"|format(prediction.confidence * 100) }}%</span>
+                        </div>
+                        <div class="confidence-meter bg-gray-200">
+                            <div class="confidence-meter-fill h-full 
+                                {% if prediction.class_name == 'Glioma' %}bg-yellow-500
+                                {% elif prediction.class_name == 'Meningioma' %}bg-orange-500
+                                {% else %}bg-red-500{% endif %}" 
+                                style="width: {{ prediction.confidence * 100 }}%">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endif %}
+
+        <!-- Results Grid -->
+        <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Original Image (Always shown) -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-4">
+                    <h3 class="font-semibold text-lg mb-2 flex items-center">
+                        <i class="fas fa-image text-blue-500 mr-2"></i> Original MRI
+                    </h3>
+                    <img src="{{ url_for('static', filename='uploads/' + uploaded_image) }}" 
+                         alt="Original MRI" class="result-image w-full">
+                </div>
+            </div>
+
+            <!-- Right Column - Conditional Content -->
+            {% if is_normal %}
+                <!-- Probability Distribution for Normal Cases -->
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg mb-4 flex items-center">
+                            <i class="fas fa-chart-pie text-blue-500 mr-2"></i> Probability Distribution
+                        </h3>
+                        <div class="space-y-3">
+                            {% for prob in prediction.probabilities %}
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="font-medium">{{ prob.name }}</span>
+                                    <span class="font-semibold">{{ "%.1f"|format(prob.value * 100) }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div class="probability-bar h-2.5 rounded-full 
+                                        {% if prob.name == 'Normal' %}bg-green-500
+                                        {% elif prob.name == 'Glioma' %}bg-yellow-500
+                                        {% elif prob.name == 'Meningioma' %}bg-orange-500
+                                        {% else %}bg-red-500{% endif %}" 
+                                        style="width: {{ prob.value * 100 }}%">
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <!-- For Abnormal Cases -->
+                {% if segmentation_image %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg mb-2 flex items-center">
+                            <i class="fas fa-object-group text-blue-500 mr-2"></i> Tumor Segmentation
+                        </h3>
+                        <div class="segmentation-overlay">
+                            <img src="{{ url_for('static', filename='results/' + segmentation_image) }}" 
+                                 alt="Segmentation Result" class="result-image w-full">
+                        </div>
+                    </div>
+                </div>
+                {% elif prediction %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg mb-4 flex items-center">
+                            <i class="fas fa-chart-pie text-blue-500 mr-2"></i> Probability Distribution
+                        </h3>
+                        <div class="space-y-3">
+                            {% for prob in prediction.probabilities %}
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="font-medium">{{ prob.name }}</span>
+                                    <span class="font-semibold">{{ "%.1f"|format(prob.value * 100) }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div class="probability-bar h-2.5 rounded-full 
+                                        {% if prob.name == 'Normal' %}bg-green-500
+                                        {% elif prob.name == 'Glioma' %}bg-yellow-500
+                                        {% elif prob.name == 'Meningioma' %}bg-orange-500
+                                        {% else %}bg-red-500{% endif %}" 
+                                        style="width: {{ prob.value * 100 }}%">
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        <!-- Explanation Section (Only for abnormal cases) -->
+        {% if explanation_image and not is_normal %}
+        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden mb-8">
+            <div class="p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-microscope text-blue-500 mr-2"></i> AI Explanation
+                </h3>
+                <p class="text-gray-600 mb-4">
+                    This heatmap shows which areas of the image most influenced the AI's decision.
+                    Warmer colors (red/yellow) indicate regions with higher importance for the diagnosis.
+                </p>
+                <img src="{{ url_for('static', filename='results/' + explanation_image) }}" 
+                    alt="AI Explanation" class="result-image w-full">
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Additional Probability Distribution if both analyses were performed -->
+        {% if prediction and segmentation_image and not is_normal %}
+        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden mb-8">
+            <div class="p-6">
+                <h3 class="font-semibold text-lg mb-4 flex items-center">
+                    <i class="fas fa-chart-pie text-blue-500 mr-2"></i> Detailed Probability Distribution
+                </h3>
+                <div class="space-y-3">
+                    {% for prob in prediction.probabilities %}
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="font-medium">{{ prob.name }}</span>
+                            <span class="font-semibold">{{ "%.1f"|format(prob.value * 100) }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div class="probability-bar h-2.5 rounded-full 
+                                {% if prob.name == 'Normal' %}bg-green-500
+                                {% elif prob.name == 'Glioma' %}bg-yellow-500
+                                {% elif prob.name == 'Meningioma' %}bg-blue-500
+                                {% else %}bg-red-500{% endif %}" 
+                                style="width: {{ prob.value * 100 }}%">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="max-w-4xl mx-auto flex flex-col sm:flex-row justify-center gap-4">
+            <a href="{{ url_for('index') }}" class="flex-1 sm:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-center shadow-md transition duration-300">
+                <i class="fas fa-redo mr-2"></i> Analyze Another
+            </a>
+            <button class="flex-1 sm:flex-none px-6 py-3 border border-gray-300 font-semibold rounded-lg text-center shadow-sm transition duration-300 hover:bg-gray-50">
+                <i class="fas fa-download mr-2"></i> Download Report
+            </button>
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="max-w-4xl mx-auto mt-8 p-4 bg-blue-50 rounded-lg text-sm text-blue-800">
+            <p><strong>Note:</strong> This AI analysis is for research purposes only and should not replace professional medical diagnosis. Always consult with a qualified healthcare provider.</p>
+            {% if is_normal %}
+            <p class="mt-2">While no tumor was detected, please consult a doctor if you experience any concerning symptoms.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Animate probability bars on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const bars = document.querySelectorAll('.probability-bar');
+            bars.forEach(bar => {
+                const originalWidth = bar.style.width;
+                bar.style.width = '0';
+                setTimeout(() => {
+                    bar.style.width = originalWidth;
+                }, 100);
+            });
+        });
+    </script>
+</body>
+</html>

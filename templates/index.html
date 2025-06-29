@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Tumor Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .upload-container {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        .upload-btn {
+            border: 2px dashed #3b82f6;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: #f8fafc;
+        }
+        .upload-btn:hover {
+            background-color: #f0f7ff;
+            border-color: #2563eb;
+        }
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .drag-active {
+            background-color: #ebf4ff;
+            border-color: #1d4ed8;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-brain mr-3 text-blue-600"></i> Brain Tumor Analysis
+            </h1>
+            <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                Upload an MRI scan for tumor detection and segmentation using AI
+            </p>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="max-w-md mx-auto mb-8">
+                    {% for category, message in messages %}
+                        <div class="p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Upload Card -->
+        <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden pulse-animation">
+            <div class="p-8">
+                <form method="POST" enctype="multipart/form-data" class="space-y-6" id="upload-form">
+                    <div class="text-center">
+                        <div class="mx-auto w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+                            <i class="fas fa-cloud-upload-alt text-blue-500 text-3xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-2">Upload MRI Scan</h2>
+                        <p class="text-gray-600 mb-6">Supported formats: JPG, JPEG, PNG</p>
+                        
+                        <!-- Upload Area -->
+                        <div class="upload-container">
+                            <label for="file-upload" class="upload-btn" id="drop-area">
+                                <i class="fas fa-file-image text-blue-500 text-4xl mb-2"></i>
+                                <p class="text-sm text-gray-600">Click to browse or drag and drop</p>
+                                <p id="file-name" class="mt-2 text-sm font-medium text-gray-700">No file selected</p>
+                            </label>
+                            <input type="file" name="image" id="file-upload" class="file-input" accept=".jpg,.jpeg,.png">
+                        </div>
+                    </div>
+                    
+                    <!-- Analysis Type Selection -->
+                    <div class="mt-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Analysis Type</h3>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-blue-600" name="analysis_type" value="classification" checked>
+                                <span class="ml-2">Classification Only</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-blue-600" name="analysis_type" value="segmentation">
+                                <span class="ml-2">Segmentation Only</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-blue-600" name="analysis_type" value="both">
+                                <span class="ml-2">Both</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition duration-300 transform hover:scale-105">
+                        <i class="fas fa-search mr-2"></i> Analyze Image
+                    </button>
+                </form>
+            </div>
+            
+            <div class="bg-gray-50 px-8 py-4">
+                <div class="flex justify-center space-x-6">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                        <span class="text-sm text-gray-600">Normal</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+                        <span class="text-sm text-gray-600">Glioma</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                        <span class="text-sm text-gray-600">Meningioma</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                        <span class="text-sm text-gray-600">Pituitary</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Preview Container -->
+        <div id="image-preview-container" class="max-w-2xl mx-auto mt-6 hidden">
+            <div class="bg-white p-4 rounded-lg shadow-md">
+                <h3 class="font-semibold text-lg mb-2">Preview</h3>
+                <img id="image-preview" class="max-h-64 mx-auto rounded-lg">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('file-upload');
+            const dropArea = document.getElementById('drop-area');
+            const fileNameDisplay = document.getElementById('file-name');
+            const imagePreview = document.getElementById('image-preview');
+            const previewContainer = document.getElementById('image-preview-container');
+            const form = document.getElementById('upload-form');
+
+            // Handle file selection via browsing
+            fileInput.addEventListener('change', function(e) {
+                handleFiles(this.files);
+            });
+
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            // Highlight drop area when item is dragged over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            // Handle dropped files
+            dropArea.addEventListener('drop', handleDrop, false);
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function highlight() {
+                dropArea.classList.add('drag-active');
+            }
+
+            function unhighlight() {
+                dropArea.classList.remove('drag-active');
+            }
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                fileInput.files = files;
+                handleFiles(files);
+            }
+
+            function handleFiles(files) {
+                if (files.length > 0) {
+                    const file = files[0];
+                    
+                    // Update file name display
+                    fileNameDisplay.textContent = file.name;
+                    fileNameDisplay.classList.add('text-blue-600');
+                    
+                    // Preview image
+                    if (file.type.match('image.*')) {
+                        const reader = new FileReader();
+                        
+                        reader.onload = function(e) {
+                            imagePreview.src = e.target.result;
+                            previewContainer.classList.remove('hidden');
+                        }
+                        
+                        reader.readAsDataURL(file);
+                    } else {
+                        previewContainer.classList.add('hidden');
+                    }
+                }
+            }
+
+            // Form submission handling
+            form.addEventListener('submit', function(e) {
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    e.preventDefault();
+                    alert('Please select a file first!');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
